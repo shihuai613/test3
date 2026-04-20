@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医道天赋测评</title>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --accent-gold: #c5a059;
+            --text-dark: #2c2c2c;
+            --accent-red: #a63535;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: "STKaiti", "KaiTi", serif;
+            background-color: #1a1a1a; /* 底色融合边缘 */
+            background-image: url('bg.jpg');
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-attachment: fixed;
+            background-size: 100% auto; 
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh;
+        }
+
+        /* 主容器：毛玻璃质感 */
+        .container {
+            width: 85%; max-width: 420px;
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(10px);
+            padding: 45px 25px;
+            border-radius: 4px;
+            border: 1px solid var(--accent-gold);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 装饰水印 */
+        .container::after {
+            content: "医道";
+            position: absolute; bottom: -10px; right: -10px;
+            font-size: 5rem; color: rgba(197, 160, 89, 0.1);
+            pointer-events: none;
+        }
+
+        .page { display: none; }
+        .active { display: block; }
+
+        /* 封面 */
+        .cover-title { font-size: 2.4rem; margin-bottom: 5px; letter-spacing: 8px; color: var(--text-dark); }
+        .cover-sub { font-size: 0.9rem; color: #666; letter-spacing: 2px; margin-bottom: 40px; }
+
+        /* 答题区 */
+        .question-num { color: var(--accent-red); font-weight: bold; margin-bottom: 15px; display: block; font-size: 0.9rem; letter-spacing: 1px; }
+        .question-text { font-size: 1.25rem; line-height: 1.6; margin-bottom: 30px; text-align: left; min-height: 4.5em; color: var(--text-dark); border-left: 3px solid var(--accent-gold); padding-left: 15px; }
+
+        /* 按钮样式 */
+        .option {
+            display: block; width: 100%; padding: 15px; margin-bottom: 12px;
+            border: 1px solid #ccc; background: rgba(255,255,255,0.6);
+            cursor: pointer; transition: 0.3s; font-size: 1rem; color: var(--text-dark);
+            border-radius: 2px;
+        }
+        .option:hover { background: var(--accent-gold); color: white; border-color: var(--accent-gold); transform: translateX(5px); }
+
+        /* 导航 */
+        .nav-box { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; }
+        .btn-prev { background: none; border: none; color: #999; cursor: pointer; font-size: 0.85rem; visibility: hidden; }
+        .btn-prev.visible { visibility: visible; }
+
+        .btn-main {
+            background: var(--text-dark); color: white; border: none; padding: 12px 35px;
+            cursor: pointer; letter-spacing: 2px; font-size: 0.95rem; border-radius: 2px;
+        }
+
+        /* 结果页 */
+        .res-code { color: var(--accent-gold); letter-spacing: 5px; font-weight: bold; margin-bottom: 5px; }
+        .res-name { font-size: 2.6rem; margin: 10px 0; border-bottom: 2px double var(--accent-gold); display: inline-block; color: var(--text-dark); padding: 0 15px; }
+        .res-desc { text-align: justify; line-height: 1.8; font-size: 0.95rem; margin-top: 20px; color: #444; background: rgba(255,255,255,0.4); padding: 15px; border-radius: 4px; }
+
+        /* 结果图片展示 */
+        #image-output img { width: 100%; margin-top: 20px; border: 1px solid var(--accent-gold); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+<div class="container" id="main-container">
+    <div id="page-cover" class="page active">
+        <div class="cover-title">医道天赋</div>
+        <div class="cover-sub">—— 16型人格专业测评 ——</div>
+        <p style="font-size: 0.95rem; color: #555; line-height: 2; margin: 40px 0;">
+            知人者智；<br>自知者明<br>
+            <span style="color:var(--accent-gold); font-size: 0.8rem; margin-top: 10px; display: block;">（答完30题，领取你的医道身份）</span>
+        </p>
+        <button class="btn-main" onclick="startQuiz()">开启测评</button>
+    </div>
+
+    <div id="page-quiz" class="page">
+        <span class="question-num" id="q-num">题目 1/30</span>
+        <div class="question-text" id="q-text"></div>
+        <div id="options-box"></div>
+        <div class="nav-box">
+            <button id="prev-link" class="btn-prev" onclick="prevStep()">← 上一题</button>
+            <div style="font-size: 0.7rem; color: #ccc; letter-spacing: 1px;">HERBAL TALENT TEST</div>
+        </div>
+    </div>
+
+    <div id="page-result" class="page">
+        <div id="capture-area">
+            <div class="res-code" id="res-code"></div>
+            <div class="res-name" id="res-name"></div>
+            <div class="res-desc" id="res-desc"></div>
+        </div>
+        
+        <div style="margin-top: 35px;">
+            <button class="btn-main" style="background: var(--accent-gold); width: 100%; margin-bottom: 15px;" onclick="saveAsImage()">生成朋友圈分享卡片</button>
+            <button class="btn-main" style="background: none; color: #999; border: 1px solid #ddd; width: 100%;" onclick="location.reload()">重新测评</button>
+        </div>
+        <div id="image-output"></div>
+        <p id="save-tip" style="display:none; font-size: 0.8rem; color: var(--accent-red); margin-top: 10px;">↑ 图片已生成，请长按保存图片</p>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        "别人交代我的事情，我很少忘、很少搞错。", "气氛一不对劲，我马上就能察觉出来。", "遇到复杂问题，我习惯一步步推理，理清因果。", "陌生人第一次见我，通常都会比较放松。", "就算不理解意思，我靠死记硬背也能记得很快。", "我对自己身体上一点点不舒服都特别敏感。", "做判断时，我更信事实和逻辑，而不是感觉。", "别人愿意跟我说心里话、脆弱的一面。", "文字、数字、台词这类内容，我看几遍就能记住。", "别人没说出口的情绪，我常常能直接感觉到。", "我喜欢把事情拆明白，说得有条有理。", "大多数人都觉得我好接近、好说话。", "很久之前的小事、对话细节，我现在还能想起来。", "别人表情、语气的细微变化，我一抓一个准。", "遇到矛盾，我会一层层排查，找到原因。", "我说话做事，容易让人觉得安心、靠谱。", "步骤、清单、顺序这类东西，我记起来很轻松。", "很多事不用讲完，我大概就懂背后的意思。", "我的思路很稳，不喜欢跳来跳去。", "就算我不刻意热情，别人也愿意靠近我。", "看过的文章、视频，我能复述出超多细节。", "对我自己的心情、状态变化看得特别清楚。", "身边人都觉得我理性、讲道理、有条理。", "有人遇到难处，会主动来找我倾诉。", "重要信息我不用反复背，也能记很久。", "对我一个人的真诚度，直觉特别灵。", "我更相信推理出来的结果，而不是突然的灵感。", "经常有人说，跟我待在一起很舒服。", "遇到拿不准的事，我会先分析再下结论。", "我不用刻意讨好，也能让人天然信任我。"
+    ];
+
+    const results = {
+        "JMTK": { name: "岐黄再世", desc: "你是最理想的顶级名医胚子：记忆超强、感知敏锐、逻辑严密、天生让人信任。知识、直觉、理性、人缘全部拉满，只要持续深耕，极易成为行业标杆与大众信赖的大家。" },
+        "JMZK": { name: "神医种子", desc: "你是天赋拉满的准神医：强记+敏感+精准直觉+亲和可信。不靠复杂推理也能直击本质，共情力与洞察力极强，是天生能读懂人、帮助人的类型。" },
+        "JMTS": { name: "冷面医宗", desc: "专业实力深不可测，强记、敏感、善推理，只是气场偏内敛，不刻意亲近。适合走专家、学术、技术路线，靠真本事让人信服。" },
+        "JMZS": { name: "隐世医手", desc: "天赋异禀却不爱张扬，强记+敏感+直觉，判断又快又准。偏安静独立，适合深耕细分领域，默默成为一方高手。" },
+        "JCTK": { name: "稳坐医堂", desc: "稳扎稳打的靠谱型人才：强记、善推理、亲和可信，感知略平实。让人安心、值得托付，走长期稳定路线，越久越受人尊敬。" },
+        "JCZK": { name: "温和医家", desc: "记忆力强、直觉准、人缘好，感知稍平实。靠经验与人品取胜，温和踏实，没有距离感，患者缘极佳。" },
+        "JCTS": { name: "铁面医判", desc: "强记+理性+严谨，感知与亲和力偏弱。说话做事讲逻辑、重依据，适合钻研、技术、学术，专业度极高。" },
+        "JCZS": { name: "默修医士", desc: "记忆力扎实，靠直觉做事，性格内敛低调。能沉下心默默深耕，厚积薄发，终会自成一派。" },
+        "WMTK": { name: "心悟医神", desc: "记忆偏弱，但悟性、感知力、逻辑、亲和力全部在线。不靠死记硬背，靠理解与共情取胜，是天生能“读懂人心”的医者。" },
+        "WMZK": { name: "通灵医感", desc: "敏感、直觉、亲和力拉满，记忆一般。第六感极强，能轻易察觉别人的痛苦与不安，天然让人愿意敞开心扉。" },
+        "WMTS": { name: "锐眼医理", desc: "感知敏锐、逻辑清晰，记忆与亲和力一般。眼光毒、思路稳，擅长理性分析、抓关键问题，专业可靠。" },
+        "WMZS": { name: "柔心医脉", desc: "感知极其细腻，直觉强，性格偏安静。内心柔软、体察入微，擅长用温柔与理解治愈他人。" },
+        "WCTK": { name: "平实医暖", desc: "理性、温和、靠谱，记忆与感知稍弱。踏实稳重、待人真诚，一步一个脚印，走温暖治愈路线。" },
+        "WCZK": { name: "随缘医心", desc: "直觉准、人缘好，其余维度偏平实。心态平和、不急躁，真诚待人，属于舒服又治愈的类型。" },
+        "WCTS": { name: "静思医匠", desc: "逻辑清晰、做事有条理，其他维度偏内敛。专注、细致、讲规矩，适合走精细化、专业化路线。" },
+        "WCZS": { name: "慢养医苗", desc: "各维度均衡平和，没有突出天赋，但也无短板。属于慢热成长型，只要坚持学习、耐心积累，同样能稳步成才。" }
+    };
+
+    let currentIdx = 0;
+    let scores = [];
+
+    function startQuiz() {
+        document.getElementById('page-cover').classList.remove('active');
+        document.getElementById('page-quiz').classList.add('active');
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        document.getElementById('q-num').innerText = `题目 ${currentIdx + 1}/30`;
+        document.getElementById('q-text').innerText = questions[currentIdx];
+        
+        const prevBtn = document.getElementById('prev-link');
+        currentIdx > 0 ? prevBtn.classList.add('visible') : prevBtn.classList.remove('visible');
+
+        const container = document.getElementById('options-box');
+        container.innerHTML = '';
+        const opts = [{t:"完全符合",s:5},{t:"比较符合",s:4},{t:"一般",s:3},{t:"不太符合",s:2},{t:"完全不符合",s:1}];
+        
+        opts.forEach(o => {
+            const b = document.createElement('button');
+            b.className = 'option';
+            b.innerText = o.t;
+            b.onclick = () => handleAnswer(o.s);
+            container.appendChild(b);
+        });
+    }
+
+    function handleAnswer(s) {
+        scores.push(s);
+        if(currentIdx < 29) {
+            currentIdx++;
+            renderQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    function prevStep() {
+        if(currentIdx > 0) {
+            currentIdx--;
+            scores.pop();
+            renderQuestion();
+        }
+    }
+
+    function showResult() {
+        document.getElementById('page-quiz').classList.remove('active');
+        document.getElementById('page-result').classList.add('active');
+
+        const sum = (arr) => arr.reduce((a, b) => a + scores[b-1], 0);
+        const m = sum([1,5,9,13,17,21,25]), p = sum([2,6,10,14,18,22,26]);
+        const a = sum([3,7,11,15,19,23,27,29]), f = sum([4,8,12,16,20,24,28,30]);
+
+        let code = (m>=18?'J':'W') + (p>=18?'M':'C') + (a>=20?'T':'Z') + (f>=20?'K':'S');
+        const res = results[code] || {name:"隐世高手", desc:"你的天赋已超脱凡尘..."};
+
+        document.getElementById('res-code').innerText = code;
+        document.getElementById('res-name').innerText = res.name;
+        document.getElementById('res-desc').innerText = res.desc;
+    }
+
+    function saveAsImage() {
+        const target = document.getElementById("main-container");
+        html2canvas(target, {
+            useCORS: true,
+            scale: 2,
+            backgroundColor: "#1a1a1a"
+        }).then(canvas => {
+            const imgData = canvas.toDataURL("image/png");
+            const output = document.getElementById("image-output");
+            output.innerHTML = `<img src="${imgData}">`;
+            document.getElementById("save-tip").style.display = "block";
+            output.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+</script>
+</body>
+</html>
